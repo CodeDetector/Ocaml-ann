@@ -58,8 +58,7 @@ let forward net x =
     let ao k = sigmoid(dot nh (Array.get ah) (fun j -> net.w.o.(j).(k))) in        
     {net with a = { i = vector ni ai; o = vector no ao }; ah = ah }          
 
-
-
+    
 let rec train net inputs iters n m =    
     if iters = 0 then net else            
         let step (net, err) (x,y) =                            
@@ -68,7 +67,45 @@ let rec train net inputs iters n m =
         let net, err = Array.fold_left step (net, 0.0) inputs in         
         if iters mod 10000 = 0 then printf "Error: %g:\n%!" err;           
         train net inputs (iters - 1) n m
-               
+
+let update net inputs =                   
+    let ni, nh, no = length net.a.i, length net.ah, length net.a.o in        
+    assert(length inputs = ni-1);         
+    let ai i = if i < ni-1 then inputs.(i) else net.a.i.(i) in               
+    let ah j = sigmoid(dot ni ai (fun i -> net.w.i.(i).(j))) in              
+    let ah   = vector nh ah in            
+    let ao k = sigmoid(dot nh (get ah) (fun j -> net.w.o.(j).(k))) in        
+    {net with a = { i = vector ni ai; o = vector no ao }; ah = ah }          
+
+let backPropagate net targets n m =       
+    let ni, nh, no = length net.a.i, length net.ah, length net.a.o in        
+
+    assert(length targets = no);          
+
+    let od k   = sigmoid' net.a.o.(k) *. (targets.(k) -. net.a.o.(k)) in     
+    let od     = vector no od in          
+    let hd j   = sigmoid' net.ah.(j) *. dot no (get od) (fun k -> net.w.o.(j).(k)) in                           
+    let hd     = vector nh hd in          
+    let co j k = od.(k) *. net.ah.(j) in  
+    let wo j k = net.w.o.(j).(k) +. n *. co j k +. m *. net.c.o.(j).(k) in   
+    let ci i j = hd.(j) *. net.a.i.(i) in 
+    let wi i j = net.w.i.(i).(j) +. n *. ci i j +. m *. net.c.i.(i).(j) in   
+
+    let init fi fo = { i = matrix ni nh fi; o = matrix nh no fo } in         
+    { net with w = init wi wo; c = init ci co },                             
+    0.5 *. fold2 no (fun t x y -> t +. (x -. y) ** 2.0) 0.0                  
+                (get targets) (get net.a.o) 
+
+
+let print_array ff print xs =             
+    let n = Array.length xs in            
+    if n = 0 then fprintf ff "[||]" else begin                               
+        fprintf ff "[|";                   
+        for i=0 to Array.length xs-2 do    
+            fprintf ff "%a; " print xs.(i) 
+    done                               
+    end
+
 (* Sample dataset  *)
 let df =                               
     [|[|2.0; 0.0; 0.0|] , [|2.0|];             
