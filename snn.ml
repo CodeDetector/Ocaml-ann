@@ -58,7 +58,7 @@ let forward net x =
     let ao k = sigmoid(dot nh (Array.get ah) (fun j -> net.w.o.(j).(k))) in        
     {net with a = { i = vector ni ai; o = vector no ao }; ah = ah }          
 
-    
+
 let rec train net inputs iters n m =    
     if iters = 0 then net else            
         let step (net, err) (x,y) =                            
@@ -105,7 +105,13 @@ let print_array ff print xs =
             fprintf ff "%a; " print xs.(i) 
     done                               
     end
-
+    
+let test patts net =                      
+    let aux (inputs, _) =                 
+        let print ff = print_array ff (fun ff -> fprintf ff "%g") in         
+        let outputs = (update net inputs).a.o in                             
+        printf "%a -> %a\n" print inputs print outputs in                    
+    Array.iter aux patts 
 (* Sample dataset  *)
 let df =                               
     [|[|2.0; 0.0; 0.0|] , [|2.0|];             
