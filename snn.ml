@@ -19,8 +19,9 @@ type 'a io       = { i: 'a; o: 'a }
 type vec         = float array          
 type mat         = vec array              
 type neuralNet   = { a : vec io; ah : vec; w : mat io; c : mat io }          
-let  vector       = Array.init   
-
+let  vector      = Array.init   
+let  length      = Array.length            
+let  get         = Array.get  
 
 (* Create a 2Darray of dimensions m*n , element of array is returned by function  *)
 let matrix m n f = vector m (fun i -> vector n (f i))                        
@@ -30,16 +31,20 @@ let neuralNet ni nh no =
     let init fi fo = { i = matrix (ni + 1) nh fi; o = matrix nh no fo } in   
     let rand x0 x1 = x0 +. Random.float(x1 -. x0) in                         
     { 
-      a = { i = vector (ni + 1) (fun _ -> 1.0); o = vector no (fun _ -> 1.0) };     
-      ah = vector nh (fun _ -> 1.0);      
+      a = { i = vector (ni + 1) (fun _ -> Random.float 5.0); o = vector no (fun _ -> Random.float 5.0) };     
+      ah = vector nh (fun _ -> Random.float 5.0);      
       w = init (fun _ _ -> rand (-0.2) 0.4) (fun _ _ -> rand (-0.2) 0.4);    
-      c = init (fun _ _ -> 0.0) (fun _ _ -> 0.0)                             
+      c = init (fun _ _ -> 1.0) (fun _ _ -> 1.0)                             
     }  
 
 let sigmoid x = 1.0 /. (1.0 +. exp(-. x)) 
 
+(* 
+    sigmoid(x)' = sigmoid(x)* (1- sigmoid(x))
+*)
 let sigmoid' y = y *. (1.0 -. y)          
 
+(* Calculating dot product of two vectors  *)
 let rec fold2 n f a xs ys =               
     let a = ref a in                      
     for i=0 to n-1 do                     
@@ -48,9 +53,8 @@ let rec fold2 n f a xs ys =
     !a 
 
 let dot n xs ys = fold2 n (fun t x y -> t +. x *. y) 0.0 xs ys               
-let length      = Array.length            
-let get         = Array.get               
-
+             
+(* Foward propogation *)
 let forward net x =                   
     let ni, nh, no = Array.length net.a.i, Array.length net.ah, Array.length net.a.o in        
     assert(length x = ni-1);         
@@ -84,10 +88,10 @@ let backPropagate net targets n m =
     let ci i j = hd.(j) *. net.a.i.(i) in 
     let wi i j = net.w.i.(i).(j) +. n *. ci i j +. m *. net.c.i.(i).(j) in   
 
-let init fi fo = { i = matrix ni nh fi; o = matrix nh no fo } in         
-{ net with w = init wi wo; c = init ci co },                             
-0.5 *. fold2 no (fun t x y -> t +. (x -. y) ** 2.0) 0.0                  
-            (get targets) (get net.a.o) 
+    let init fi fo = { i = matrix ni nh fi; o = matrix nh no fo } in         
+    { net with w = init wi wo; c = init ci co },                             
+    0.5 *. fold2 no (fun t x y -> t +. (x -. y) ** 2.0) 0.0                  
+                (get targets) (get net.a.o) 
     
     
 let rec train net patterns iters n m =    
@@ -103,10 +107,9 @@ let rec train net patterns iters n m =
 let print_array ff print xs =             
     let n = Array.length xs in            
     if n = 0 then fprintf ff "[||]" else begin                               
-        fprintf ff "[|";                   
-        for i=0 to Array.length xs-2 do    
-            fprintf ff "%a; " print xs.(i) 
-    done                               
+        for i=0 to Array.length xs-1 do    
+            fprintf ff "%a; " print xs.(i)
+        done                       
     end
     
 let test patts net =                      
